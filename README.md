@@ -644,6 +644,15 @@ Providing a token unlocks:
 
 ## 📊 Output Formats
 
+Login Page
+
+<img width="3164" height="1900" alt="image" src="https://github.com/user-attachments/assets/9103b89b-7478-4772-bbc8-b3a4a3de4e49" />
+
+
+Show you dashboard
+
+<img width="2864" height="1800" alt="image" src="https://github.com/user-attachments/assets/c14d9642-409a-4fea-8021-a4c6339c8c48" />
+
 1. **Terminal CLI Table**: Structured ASCII table summarizing project name, detected issues, and severity (High, Medium, Low).
 2. **Web Dashboard**: Interactive cards, summary statistics, severity badges, and detailed findings.
 3. **PDF Export**: Clean executive-ready PDF report generated via iText.
