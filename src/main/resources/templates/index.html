@@ -163,60 +163,59 @@
             <p>Scan repositories for security risks and misconfigurations</p>
         </div>
 
-        <form method="post" id="scanForm">
+        <form method="post" id="scanForm" action="/scan-user">
             <div class="form-group">
                 <label for="username">GitLab Username or Group Name</label>
-                <input type="text" id="username" name="username" placeholder="e.g., torvalds" required>
+                <input type="text" id="username" name="username" placeholder="e.g., gitlab-examples" required>
             </div>
 
             <div class="form-group">
                 <label for="token">GitLab Personal Access Token (Optional)</label>
-                <textarea id="token" name="token" rows="2" placeholder="Leave empty for public repositories only"></textarea>
+                <textarea id="token" name="token" rows="2" placeholder="Leave empty for public repositories (uses configured token)"></textarea>
             </div>
 
             <div class="info-box">
-                💡 To generate a personal access token, visit your GitLab Settings → Access Tokens
+                💡 To generate a personal access token, visit your GitLab Settings → Access Tokens. An authenticated token enables higher API rate limits and private repository scanning.
             </div>
 
-            <div class="button-group">
-                <button type="submit" class="btn-user" name="scanType" value="user">Scan User Projects</button>
-                <button type="submit" class="btn-group" name="scanType" value="group">Scan Group Projects</button>
+            <div id="loadingIndicator" style="display:none; text-align: center; margin-top: 15px; color: #667eea; font-weight: 600;">
+                ⏳ Scanning repositories... Please wait.
+            </div>
+
+            <div class="button-group" id="btnGroup">
+                <button type="submit" class="btn-user" onclick="setScanMode('user')">Scan User Projects</button>
+                <button type="submit" class="btn-group" onclick="setScanMode('group')">Scan Group Projects</button>
             </div>
         </form>
 
         <div class="features">
             <h3>🛡️ Security Checks</h3>
             <ul class="feature-list">
-                <li>Detects sensitive files (.env, .pem, keys)</li>
-                <li>Identifies exposed secrets and credentials</li>
+                <li>Detects sensitive files (.env, .pem, keys, credentials)</li>
+                <li>Identifies exposed secrets and credentials via regex</li>
                 <li>Reports missing README and LICENSE files</li>
-                <li>Severity-based risk assessment</li>
+                <li>Severity-based risk assessment (High, Medium, Low)</li>
+                <li>Exportable reports (PDF & JSON) and CLI runner</li>
             </ul>
         </div>
     </div>
 
     <script>
-        document.getElementById('scanForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const scanType = event.submitter.value;
-            const username = document.getElementById('username').value;
-            const token = document.getElementById('token').value;
-            
-            const action = scanType === 'user' ? 'scan-user' : 'scan-group';
-            const paramName = scanType === 'user' ? 'username' : 'groupName';
-            
-            const form = new FormData();
-            form.append(paramName, username);
-            if (token) form.append('token', token);
-            
-            fetch(action, {
-                method: 'POST',
-                body: form
-            }).then(response => response.text())
-              .then(html => {
-                  document.body.innerHTML = html;
-              })
-              .catch(error => alert('Error: ' + error));
+        function setScanMode(mode) {
+            const form = document.getElementById('scanForm');
+            const input = document.getElementById('username');
+            if (mode === 'group') {
+                form.action = '/scan-group';
+                input.name = 'groupName';
+            } else {
+                form.action = '/scan-user';
+                input.name = 'username';
+            }
+        }
+
+        document.getElementById('scanForm').addEventListener('submit', function() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('btnGroup').style.opacity = '0.5';
         });
     </script>
 </body>

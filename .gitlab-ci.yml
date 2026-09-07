@@ -1,0 +1,39 @@
+stages:
+  - build
+  - test
+  - package
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+build:
+  stage: build
+  image: maven:3.9-eclipse-temurin-17
+  script:
+    - mvn clean compile -B
+
+test:
+  stage: test
+  image: maven:3.9-eclipse-temurin-17
+  script:
+    - mvn test -B
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - target/surefire-reports/TEST-*.xml
+
+package:
+  stage: package
+  image: maven:3.9-eclipse-temurin-17
+  script:
+    - mvn package -DskipTests -B
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 1 week

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # GitLab Risk Scanner
 
 A Spring Boot application that scans public GitLab repositories for common security risks and repository misconfigurations.
@@ -93,10 +94,45 @@ Check Maven:
 
 ```bash
 mvn -version
+=======
+# GitLab Public Repository Risk Scanner
+
+An automated scanning tool that analyzes public (and private, with token) GitLab repositories for a given user or group, identifies potential security risks and misconfigurations, and presents findings in structured CLI format, an interactive Web Dashboard, and downloadable PDF/JSON reports.
+
+---
+
+## 🎯 Features
+
+The scanner inspects repositories across **3 core categories of risks**:
+1. **Sensitive Files**: Detects committed sensitive files such as `.env`, `.pem`, `id_rsa`, `config.json`, `secrets.yml`, `.aws/credentials`, etc.
+2. **Exposed Credentials / Secrets**: Uses regex patterns to identify exposed API keys, GitLab/GitHub access tokens, private keys, database connection strings, passwords, and cloud credentials.
+3. **Missing Metadata**: Flags missing essential repository documentation (`README.md`, `LICENSE`).
+
+---
+
+## 🚀 How to Run
+
+### Option 1: Docker Compose (Recommended)
+
+Run the entire application in a Docker container without needing Java installed on the host:
+
+```bash
+docker compose up --build
+```
+
+- **Web Dashboard**: Open [http://localhost:8080](http://localhost:8080)
+- **Swagger / OpenAPI**: Open [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- **Health Check**: Open [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health)
+
+To shut down:
+```bash
+docker compose down
+>>>>>>> 2d8a38f (feat: configure GitLab scanner with CLI mode, token auth, PDF/JSON export, and tests)
 ```
 
 ---
 
+<<<<<<< HEAD
 # Configuration
 
 `src/main/resources/application.properties`
@@ -157,10 +193,37 @@ Application runs on:
 
 ```text
 http://localhost:8080
+=======
+### Option 2: Native Local Execution (Requires JDK 17+)
+
+If you have Java 17+ installed:
+
+#### Run as Web Dashboard:
+```bash
+./mvnw spring-boot:run
+```
+Then visit [http://localhost:8080](http://localhost:8080).
+
+#### Run as CLI Scanner Tool:
+Scan a GitLab group and output the structured ASCII table to the terminal:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--scan.group=gitlab-examples"
+```
+
+Scan a GitLab user:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--scan.user=some-user"
+```
+
+Scan and export reports directly from CLI:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--scan.group=gitlab-examples --export.json=report.json --export.pdf=report.pdf --cli.exit"
+>>>>>>> 2d8a38f (feat: configure GitLab scanner with CLI mode, token auth, PDF/JSON export, and tests)
 ```
 
 ---
 
+<<<<<<< HEAD
 # API Flow
 
 ```text
@@ -535,25 +598,67 @@ Important rules:
 
 ---
 
-# Status
+## 🚀 Execution & Deployment
 
-Current development focus:
+### Option 1: Docker Compose (Recommended)
 
-```text
-[ ] Spring Boot setup
-[ ] GitLab connectivity
-[ ] User project retrieval
-[ ] Group project retrieval
-[ ] Repository file retrieval
-[ ] Sensitive file scanner
-[ ] Secret scanner
-[ ] Metadata scanner
-[ ] Scan API
-[ ] Tests
-[ ] Docker
-[ ] Swagger
+```bash
+docker compose up --build
+```
+- **Web Dashboard**: [http://localhost:8080](http://localhost:8080)
+- **Swagger / OpenAPI**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- **Health Check**: [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health)
+
+### Option 2: Native Local Execution (JDK 17+)
+
+Run as Web Dashboard:
+```bash
+./mvnw spring-boot:run
 ```
 
-## Goal
+Run as CLI Scanner Tool:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--scan.group=gitlab-examples"
+```
 
-Build a simple, reliable Spring Boot service that takes a **GitLab username or group**, scans its public repositories using **real GitLab API data**, and returns an actionable security risk report.
+Export reports directly from CLI:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--scan.group=gitlab-examples --export.json=report.json --export.pdf=report.pdf --cli.exit"
+```
+
+---
+
+## 🔑 GitLab Authentication Token
+
+A GitLab Personal Access Token can be configured in multiple ways:
+1. **In `docker-compose.yml`**: Set the `GITLAB_TOKEN` environment variable.
+2. **In `src/main/resources/application.properties`**: Set `gitlab.token=...`.
+3. **In Web UI**: Paste your token in the optional token field before submitting a scan.
+4. **In CLI**: Pass `--scan.token=glpat-...`.
+
+Providing a token unlocks:
+- **Private repository scanning** (repos accessible to the token holder).
+- **Higher API rate limits** to avoid GitLab anonymous throttling.
+
+---
+
+## 📊 Output Formats
+
+1. **Terminal CLI Table**: Structured ASCII table summarizing project name, detected issues, and severity (High, Medium, Low).
+2. **Web Dashboard**: Interactive cards, summary statistics, severity badges, and detailed findings.
+3. **PDF Export**: Clean executive-ready PDF report generated via iText.
+4. **JSON Export**: Full JSON object for integration with CI/CD or SIEM platforms.
+
+---
+
+## 🧪 Running Tests
+
+Run the test suite:
+```bash
+./mvnw clean test
+```
+Tests include:
+- `SensitiveFilesScannerTest`: Validates detection of `.env`, `.pem`, `id_rsa`, `secrets.yml`, `.aws/credentials`.
+- `ExposedSecretsScannerTest`: Validates regex detection for AWS keys, GitLab tokens, private keys, database URLs.
+- `MissingMetadataScannerTest`: Validates missing README and LICENSE warnings.
+- `ReportGeneratorTest`: Validates CLI table rendering, JSON serialization, and PDF byte generation.

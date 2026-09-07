@@ -22,18 +22,18 @@ public class ScanController {
     }
 
     @PostMapping("/scan/user")
-    @Operation(summary = "Scan public repositories for a GitLab user")
+    @Operation(summary = "Scan repositories for a GitLab user")
     @ResponseBody
     public ScanResult scanUser(
             @Parameter(description = "GitLab username")
             @RequestParam String username,
-            @Parameter(description = "Optional GitLab personal access token for private repos")
+            @Parameter(description = "Optional GitLab personal access token")
             @RequestParam(required = false) String token) {
         return scannerService.scanUserProjects(username, token);
     }
 
     @PostMapping("/scan/group")
-    @Operation(summary = "Scan public repositories for a GitLab group")
+    @Operation(summary = "Scan repositories for a GitLab group")
     @ResponseBody
     public ScanResult scanGroup(
             @Parameter(description = "GitLab group name")
@@ -41,6 +41,48 @@ public class ScanController {
             @Parameter(description = "Optional GitLab personal access token")
             @RequestParam(required = false) String token) {
         return scannerService.scanGroupProjects(groupName, token);
+    }
+
+    @GetMapping(value = "/scan/user/pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Export GitLab user scan report as PDF")
+    public org.springframework.http.ResponseEntity<byte[]> exportUserPdf(
+            @RequestParam String username,
+            @RequestParam(required = false) String token) {
+        ScanResult result = scannerService.scanUserProjects(username, token);
+        byte[] pdfBytes = reportGenerator.generatePdfReport(result);
+        return org.springframework.http.ResponseEntity.ok()
+            .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"scan-" + username + ".pdf\"")
+            .body(pdfBytes);
+    }
+
+    @GetMapping(value = "/scan/group/pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    @Operation(summary = "Export GitLab group scan report as PDF")
+    public org.springframework.http.ResponseEntity<byte[]> exportGroupPdf(
+            @RequestParam String groupName,
+            @RequestParam(required = false) String token) {
+        ScanResult result = scannerService.scanGroupProjects(groupName, token);
+        byte[] pdfBytes = reportGenerator.generatePdfReport(result);
+        return org.springframework.http.ResponseEntity.ok()
+            .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"scan-" + groupName + ".pdf\"")
+            .body(pdfBytes);
+    }
+
+    @GetMapping(value = "/scan/cli", produces = org.springframework.http.MediaType.TEXT_PLAIN_VALUE)
+    @Operation(summary = "Get text/CLI table report for user or group")
+    @ResponseBody
+    public String getCliReport(
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String groupName,
+            @RequestParam(required = false) String token) {
+        ScanResult result;
+        if (username != null && !username.isBlank()) {
+            result = scannerService.scanUserProjects(username, token);
+        } else if (groupName != null && !groupName.isBlank()) {
+            result = scannerService.scanGroupProjects(groupName, token);
+        } else {
+            return "Please specify either username or groupName parameter.";
+        }
+        return reportGenerator.generateDetailedCliReport(result);
     }
 
     @GetMapping("/health")

@@ -32,41 +32,48 @@ public class ScannerService {
     }
 
     public ScanResult scanUserProjects(String username, String gitlabToken) {
-        if (gitlabToken != null && !gitlabToken.isEmpty()) {
+        if (gitlabToken != null && !gitlabToken.isBlank()) {
             gitLabApiClient.setGitlabToken(gitlabToken);
         }
-
+        boolean hasToken = isTokenConfigured();
         List<GitLabProjectDTO> projects = gitLabApiClient.getPublicProjectsByUsername(username);
-        return performScan(username, null, projects);
+        return performScan(username, null, projects, hasToken);
     }
 
     public ScanResult scanGroupProjects(String groupName, String gitlabToken) {
-        if (gitlabToken != null && !gitlabToken.isEmpty()) {
+        if (gitlabToken != null && !gitlabToken.isBlank()) {
             gitLabApiClient.setGitlabToken(gitlabToken);
         }
-
+        boolean hasToken = isTokenConfigured();
         List<GitLabProjectDTO> projects = gitLabApiClient.getGroupPublicProjects(groupName);
-        return performScan(null, groupName, projects);
+        return performScan(null, groupName, projects, hasToken);
     }
 
-    private ScanResult performScan(String username, String groupName, List<GitLabProjectDTO> projects) {
+    private boolean isTokenConfigured() {
+        return gitLabApiClient.getGitlabToken() != null && !gitLabApiClient.getGitlabToken().isBlank();
+    }
+
+    private ScanResult performScan(String username, String groupName, List<GitLabProjectDTO> projects, boolean hasToken) {
         ScanResult result = new ScanResult();
         result.setUsername(username);
         result.setGroupName(groupName);
         result.setScanTime(LocalDateTime.now());
-        result.setTotalProjects(projects.size());
+
+        if (projects == null) {
+            projects = List.of();
+        }
 
         List<Project> scannedProjects = new ArrayList<>();
         int projectsWithRisks = 0;
 
         for (GitLabProjectDTO dto : projects) {
-            // Check if project is public (consider null as false)
             Boolean isPublic = dto.getIsPublic();
-            if (isPublic == null || !isPublic) {
-                // Also check visibility field
-                if (dto.getVisibility() == null || !dto.getVisibility().equalsIgnoreCase("public")) {
-                    continue;
-                }
+            boolean isPublicRepo = (isPublic != null && isPublic) || 
+                                   "public".equalsIgnoreCase(dto.getVisibility());
+
+            // If no token is provided, strictly filter for public repositories
+            if (!hasToken && !isPublicRepo) {
+                continue;
             }
 
             Project project = new Project();
@@ -74,19 +81,26 @@ public class ScannerService {
             project.setName(dto.getName());
             project.setWebUrl(dto.getWebUrl());
             project.setDescription(dto.getDescription());
-            project.setIsPublic(isPublic != null ? isPublic : true);
+            project.setIsPublic(isPublicRepo);
 
-            // Scan for sensitive files
-            project.getRisks().addAll(sensitiveFilesScanner.scan(gitLabApiClient, dto.getId()));
-
-            // Scan for missing metadata
-            project.getRisks().addAll(missingMetadataScanner.scan(gitLabApiClient, dto.getId()));
-
-            // Scan files for exposed secrets
+            // Fetch repository tree once (recursive)
             List<GitLabTreeItemDTO> treeItems = gitLabApiClient.getRepositoryTree(dto.getId(), null);
+
+            // 1. Scan for sensitive files
+            project.getRisks().addAll(sensitiveFilesScanner.scan(treeItems));
+
+            // 2. Scan for missing metadata
+            project.getRisks().addAll(missingMetadataScanner.scan(treeItems));
+
+            // 3. Scan text files for exposed secrets (limit to reasonable batch to avoid rate-limiting)
+            int secretsFilesScanned = 0;
             for (GitLabTreeItemDTO item : treeItems) {
-                if (item.getType().equals("blob") && isTextFile(item.getName())) {
+                if ("blob".equalsIgnoreCase(item.getType()) && isTextFile(item.getName())) {
                     project.getRisks().addAll(exposedSecretsScanner.scan(gitLabApiClient, dto.getId(), item.getPath()));
+                    secretsFilesScanned++;
+                    if (secretsFilesScanned >= 25) {
+                        break;
+                    }
                 }
             }
 
@@ -97,6 +111,7 @@ public class ScannerService {
             scannedProjects.add(project);
         }
 
+        result.setTotalProjects(scannedProjects.size());
         result.setProjectsScanned(scannedProjects);
         result.setProjectsWithRisks(projectsWithRisks);
         result.setHighestSeverity(result.calculateHighestSeverity());

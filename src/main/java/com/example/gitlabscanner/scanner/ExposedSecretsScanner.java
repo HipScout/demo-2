@@ -29,27 +29,32 @@ public class ExposedSecretsScanner {
     );
 
     public List<Risk> scan(GitLabApiClient client, Long projectId, String filename) {
-        List<Risk> risks = new ArrayList<>();
-        
         try {
             String content = client.getFileContent(projectId, filename);
-            if (content != null && !content.isEmpty()) {
-                for (SecretPattern pattern : SECRET_PATTERNS) {
-                    if (Pattern.compile(pattern.regex, Pattern.CASE_INSENSITIVE | Pattern.MULTILINE)
-                            .matcher(content).find()) {
-                        risks.add(new Risk(
-                            RiskCategory.EXPOSED_SECRETS,
-                            "Potential exposed secret detected: " + pattern.name,
-                            pattern.severity,
-                            filename + " (line with secret not shown for safety)"
-                        ));
-                    }
-                }
-            }
+            return scanContent(content, filename);
         } catch (Exception e) {
             // Ignore file read errors
+            return List.of();
         }
-        
+    }
+
+    public List<Risk> scanContent(String content, String filename) {
+        List<Risk> risks = new ArrayList<>();
+        if (content == null || content.isEmpty()) {
+            return risks;
+        }
+
+        for (SecretPattern pattern : SECRET_PATTERNS) {
+            if (Pattern.compile(pattern.regex, Pattern.CASE_INSENSITIVE | Pattern.MULTILINE)
+                    .matcher(content).find()) {
+                risks.add(new Risk(
+                    RiskCategory.EXPOSED_SECRETS,
+                    "Potential exposed secret detected: " + pattern.name,
+                    pattern.severity,
+                    filename + " (line with secret not shown for safety)"
+                ));
+            }
+        }
         return risks;
     }
 

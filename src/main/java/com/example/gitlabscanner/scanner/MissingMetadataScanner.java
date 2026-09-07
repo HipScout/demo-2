@@ -12,22 +12,30 @@ import java.util.List;
 
 @Component
 public class MissingMetadataScanner {
-    private static final List<String> REQUIRED_FILES = List.of("README.md", "README.rst", "README", "LICENSE", "LICENSE.md");
 
     public List<Risk> scan(GitLabApiClient client, Long projectId) {
-        List<Risk> risks = new ArrayList<>();
         List<GitLabTreeItemDTO> treeItems = client.getRepositoryTree(projectId, null);
+        return scan(treeItems);
+    }
+
+    public List<Risk> scan(List<GitLabTreeItemDTO> treeItems) {
+        List<Risk> risks = new ArrayList<>();
+        if (treeItems == null) {
+            treeItems = List.of();
+        }
         
         boolean hasReadme = treeItems.stream()
-            .anyMatch(item -> item.getType().equals("blob") && 
+            .anyMatch(item -> "blob".equalsIgnoreCase(item.getType()) && 
                      (item.getName().toLowerCase().startsWith("readme") || 
-                      item.getName().toLowerCase().equals("readme.md")));
+                      item.getName().toLowerCase().equals("readme.md") ||
+                      item.getName().toLowerCase().equals("readme.rst") ||
+                      item.getName().toLowerCase().equals("readme.txt")));
         
         boolean hasLicense = treeItems.stream()
-            .anyMatch(item -> item.getType().equals("blob") && 
-                     (item.getName().toLowerCase().equals("license") || 
-                      item.getName().toLowerCase().equals("license.md") ||
-                      item.getName().toLowerCase().equals("copying")));
+            .anyMatch(item -> "blob".equalsIgnoreCase(item.getType()) && 
+                     (item.getName().toLowerCase().startsWith("license") || 
+                      item.getName().toLowerCase().startsWith("licence") ||
+                      item.getName().toLowerCase().startsWith("copying")));
         
         if (!hasReadme) {
             risks.add(new Risk(

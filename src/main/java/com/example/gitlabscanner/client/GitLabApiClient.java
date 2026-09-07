@@ -1,18 +1,21 @@
 package com.example.gitlabscanner.client;
 
+import com.example.gitlabscanner.dto.GitLabFileContentDTO;
 import com.example.gitlabscanner.dto.GitLabProjectDTO;
 import com.example.gitlabscanner.dto.GitLabTreeItemDTO;
-import com.example.gitlabscanner.dto.GitLabFileContentDTO;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.HttpClientErrorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Base64;
+import java.util.Map;
 
 @Component
 public class GitLabApiClient {
@@ -31,11 +34,26 @@ public class GitLabApiClient {
             .build();
     }
 
+    private RestClient.RequestHeadersUriSpec<?> requestWithAuth() {
+        return (RestClient.RequestHeadersUriSpec<?>) restClient.get()
+            .headers(headers -> {
+                if (gitlabToken != null && !gitlabToken.isBlank()) {
+                    headers.set("PRIVATE-TOKEN", gitlabToken.trim());
+                }
+            });
+    }
+
     public List<GitLabProjectDTO> getPublicProjectsByUsername(String username) {
         try {
-            String url = "/users/{username}/projects?per_page=100";
-            GitLabProjectDTO[] projects = restClient.get()
-                .uri(url, username)
+            Long userId = resolveUserId(username);
+            String url;
+            if (userId != null) {
+                url = "/users/" + userId + "/projects?per_page=100";
+            } else {
+                url = "/users/" + URLEncoder.encode(username, StandardCharsets.UTF_8) + "/projects?per_page=100";
+            }
+            GitLabProjectDTO[] projects = requestWithAuth()
+                .uri(url)
                 .retrieve()
                 .body(GitLabProjectDTO[].class);
             
@@ -51,11 +69,35 @@ public class GitLabApiClient {
         }
     }
 
+    private Long resolveUserId(String username) {
+        if (username.matches("\\d+")) {
+            return Long.parseLong(username);
+        }
+        try {
+            String url = "/users?username=" + URLEncoder.encode(username, StandardCharsets.UTF_8);
+            @SuppressWarnings("unchecked")
+            Map<String, Object>[] users = requestWithAuth()
+                .uri(url)
+                .retrieve()
+                .body(Map[].class);
+            if (users != null && users.length > 0 && users[0].containsKey("id")) {
+                Object idObj = users[0].get("id");
+                if (idObj instanceof Number) {
+                    return ((Number) idObj).longValue();
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not resolve user ID for username {}: {}", username, e.getMessage());
+        }
+        return null;
+    }
+
     public List<GitLabProjectDTO> getGroupPublicProjects(String groupName) {
         try {
-            String url = "/groups/{groupName}/projects?per_page=100";
-            GitLabProjectDTO[] projects = restClient.get()
-                .uri(url, groupName)
+            String encodedGroup = URLEncoder.encode(groupName, StandardCharsets.UTF_8);
+            String url = "/groups/" + encodedGroup + "/projects?per_page=100";
+            GitLabProjectDTO[] projects = requestWithAuth()
+                .uri(url)
                 .retrieve()
                 .body(GitLabProjectDTO[].class);
             
@@ -72,24 +114,20 @@ public class GitLabApiClient {
     }
 
     public List<GitLabTreeItemDTO> getRepositoryTree(Long projectId, String path) {
+        return getRepositoryTree(projectId, path, true);
+    }
+
+    public List<GitLabTreeItemDTO> getRepositoryTree(Long projectId, String path, boolean recursive) {
         try {
-            String url = "/projects/{projectId}/repository/tree?recursive=false&per_page=100";
-            if (path != null && !path.isEmpty()) {
-                url += "&path={path}";
+            StringBuilder url = new StringBuilder("/projects/" + projectId + "/repository/tree?per_page=100&recursive=" + recursive);
+            if (path != null && !path.isBlank()) {
+                url.append("&path=").append(URLEncoder.encode(path, StandardCharsets.UTF_8));
             }
             
-            GitLabTreeItemDTO[] items;
-            if (path != null && !path.isEmpty()) {
-                items = restClient.get()
-                    .uri(url, projectId, path)
-                    .retrieve()
-                    .body(GitLabTreeItemDTO[].class);
-            } else {
-                items = restClient.get()
-                    .uri(url, projectId)
-                    .retrieve()
-                    .body(GitLabTreeItemDTO[].class);
-            }
+            GitLabTreeItemDTO[] items = requestWithAuth()
+                .uri(url.toString())
+                .retrieve()
+                .body(GitLabTreeItemDTO[].class);
             
             return Arrays.asList(items != null ? items : new GitLabTreeItemDTO[0]);
         } catch (Exception e) {
@@ -101,9 +139,9 @@ public class GitLabApiClient {
     public String getFileContent(Long projectId, String filePath) {
         try {
             String encodedPath = encodeFilePath(filePath);
-            String url = "/projects/{projectId}/repository/files/{filePath}/raw?ref=HEAD";
-            return restClient.get()
-                .uri(url, projectId, encodedPath)
+            URI uri = URI.create(GITLAB_API_URL + "/projects/" + projectId + "/repository/files/" + encodedPath + "/raw?ref=HEAD");
+            return requestWithAuth()
+                .uri(uri)
                 .retrieve()
                 .body(String.class);
         } catch (Exception e) {
@@ -115,9 +153,9 @@ public class GitLabApiClient {
     public boolean fileExists(Long projectId, String filePath) {
         try {
             String encodedPath = encodeFilePath(filePath);
-            String url = "/projects/{projectId}/repository/files/{filePath}?ref=HEAD";
-            restClient.get()
-                .uri(url, projectId, encodedPath)
+            URI uri = URI.create(GITLAB_API_URL + "/projects/" + projectId + "/repository/files/" + encodedPath + "?ref=HEAD");
+            requestWithAuth()
+                .uri(uri)
                 .retrieve()
                 .body(GitLabFileContentDTO.class);
             return true;
@@ -127,10 +165,14 @@ public class GitLabApiClient {
     }
 
     private String encodeFilePath(String filePath) {
-        return Base64.getEncoder().encodeToString(filePath.getBytes()).replaceAll("=", "%3D");
+        return URLEncoder.encode(filePath, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     public void setGitlabToken(String token) {
         this.gitlabToken = token;
+    }
+
+    public String getGitlabToken() {
+        return gitlabToken;
     }
 }

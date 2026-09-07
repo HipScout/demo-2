@@ -47,4 +47,11 @@ public class ScanResult {
             .filter(r -> r.getSeverity() == SeverityLevel.LOW)
             .count();
     }
+
+    public String getFormattedScanTime() {
+        if (scanTime == null) {
+            return "";
+        }
+        return scanTime.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    }
 }

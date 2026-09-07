@@ -3,15 +3,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: spring-app
+    container_name: gitlab-scanner
     ports:
       - "8080:8080"
     environment:
+      - GITLAB_TOKEN=glpat-lSlFduNfZgqBecZ9MvSKo2M6MQpvOjEKdTo1bnVsZg8.01.170lw8qyl
       - JAVA_OPTS=-Xmx512m -Xms256m
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 3s
       retries: 3
-      start_period: 5s
+      start_period: 15s
     restart: unless-stopped
