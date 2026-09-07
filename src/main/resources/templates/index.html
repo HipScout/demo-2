@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitLab Repository Risk Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-user {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-user:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-group {
+            background: #764ba2;
+            color: white;
+        }
+
+        .btn-group:hover {
+            background: #653a8a;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
+        }
+
+        .features {
+            margin-top: 40px;
+            border-top: 1px solid #eee;
+            padding-top: 30px;
+        }
+
+        .features h3 {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 12px 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 GitLab Risk Scanner</h1>
+            <p>Scan repositories for security risks and misconfigurations</p>
+        </div>
+
+        <form method="post" id="scanForm">
+            <div class="form-group">
+                <label for="username">GitLab Username or Group Name</label>
+                <input type="text" id="username" name="username" placeholder="e.g., torvalds" required>
+            </div>
+
+            <div class="form-group">
+                <label for="token">GitLab Personal Access Token (Optional)</label>
+                <textarea id="token" name="token" rows="2" placeholder="Leave empty for public repositories only"></textarea>
+            </div>
+
+            <div class="info-box">
+                💡 To generate a personal access token, visit your GitLab Settings → Access Tokens
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn-user" name="scanType" value="user">Scan User Projects</button>
+                <button type="submit" class="btn-group" name="scanType" value="group">Scan Group Projects</button>
+            </div>
+        </form>
+
+        <div class="features">
+            <h3>🛡️ Security Checks</h3>
+            <ul class="feature-list">
+                <li>Detects sensitive files (.env, .pem, keys)</li>
+                <li>Identifies exposed secrets and credentials</li>
+                <li>Reports missing README and LICENSE files</li>
+                <li>Severity-based risk assessment</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('scanForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const scanType = event.submitter.value;
+            const username = document.getElementById('username').value;
+            const token = document.getElementById('token').value;
+            
+            const action = scanType === 'user' ? 'scan-user' : 'scan-group';
+            const paramName = scanType === 'user' ? 'username' : 'groupName';
+            
+            const form = new FormData();
+            form.append(paramName, username);
+            if (token) form.append('token', token);
+            
+            fetch(action, {
+                method: 'POST',
+                body: form
+            }).then(response => response.text())
+              .then(html => {
+                  document.body.innerHTML = html;
+              })
+              .catch(error => alert('Error: ' + error));
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Results - GitLab Risk Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .scan-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .info-card {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-label {
+            color: #999;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .error-box {
+            background: #fee;
+            border: 1px solid #fcc;
+            border-radius: 8px;
+            padding: 15px;
+            color: #c33;
+            margin-bottom: 20px;
+        }
+
+        .severity-high {
+            color: #d32f2f;
+        }
+
+        .severity-medium {
+            color: #f57c00;
+        }
+
+        .severity-low {
+            color: #fbc02d;
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 0 5px 0 0;
+        }
+
+        .severity-badge.high {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .severity-badge.medium {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .severity-badge.low {
+            background: #fffde7;
+            color: #fbc02d;
+        }
+
+        .results-grid {
+            display: grid;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .project-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #ddd;
+        }
+
+        .project-card.has-risks {
+            border-top-color: #d32f2f;
+        }
+
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .project-name {
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .project-url {
+            color: #667eea;
+            font-size: 12px;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .risks-list {
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+
+        .risk-item {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border-left: 3px solid;
+        }
+
+        .risk-item.high {
+            border-left-color: #d32f2f;
+        }
+
+        .risk-item.medium {
+            border-left-color: #f57c00;
+        }
+
+        .risk-item.low {
+            border-left-color: #fbc02d;
+        }
+
+        .risk-category {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .risk-description {
+            color: #555;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .risk-evidence {
+            color: #999;
+            font-size: 12px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .no-risks {
+            background: #f0f9ff;
+            border: 1px solid #b3e5fc;
+            border-radius: 6px;
+            padding: 12px;
+            color: #0277bd;
+            font-size: 13px;
+        }
+
+        .back-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .back-button:hover {
+            background: #5568d3;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 15px;
+        }
+
+        .summary-item.high .value {
+            color: #d32f2f;
+        }
+
+        .summary-item.medium .value {
+            color: #f57c00;
+        }
+
+        .summary-item.low .value {
+            color: #fbc02d;
+        }
+
+        .summary-item .label {
+            color: #999;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .summary-item .value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Scan Results</h1>
+            <p th:text="${scanType}"></p>
+            
+            <div th:if="${scanResult}" class="scan-info">
+                <div class="info-card">
+                    <div class="info-label">Total Projects Scanned</div>
+                    <div class="info-value" th:text="${scanResult.totalProjects}"></div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Projects with Risks</div>
+                    <div class="info-value" th:text="${scanResult.projectsWithRisks}"></div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Highest Severity</div>
+                    <div class="info-value" th:text="${scanResult.highestSeverity != null ? scanResult.highestSeverity : 'None'}"></div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Scan Time</div>
+                    <div class="info-value" th:text="${#dates.format(scanResult.scanTime, 'HH:mm:ss')}"></div>
+                </div>
+            </div>
+        </div>
+
+        <div th:if="${error}" class="error-box">
+            <strong>Error:</strong> <span th:text="${error}"></span>
+        </div>
+
+        <div th:if="${scanResult && scanResult.projectsScanned}" class="results-grid">
+            <div class="summary">
+                <div class="summary-item high">
+                    <div class="label">High Risk</div>
+                    <div class="value" th:text="${scanResult.highRiskCount}"></div>
+                </div>
+                <div class="summary-item medium">
+                    <div class="label">Medium Risk</div>
+                    <div class="value" th:text="${scanResult.mediumRiskCount}"></div>
+                </div>
+                <div class="summary-item low">
+                    <div class="label">Low Risk</div>
+                    <div class="value" th:text="${scanResult.lowRiskCount}"></div>
+                </div>
+            </div>
+
+            <div th:each="project : ${scanResult.projectsScanned}" class="project-card" th:classappend="${!project.risks.isEmpty() ? 'has-risks' : ''}">
+                <div class="project-header">
+                    <div>
+                        <div class="project-name" th:text="${project.name}"></div>
+                        <a class="project-url" th:href="${project.webUrl}" target="_blank" th:text="${project.webUrl}"></a>
+                    </div>
+                </div>
+
+                <div class="risks-list">
+                    <div th:if="${project.risks.isEmpty()}" class="no-risks">
+                        ✓ No risks detected in this repository
+                    </div>
+
+                    <div th:each="risk : ${project.risks}" class="risk-item" th:classappend="${risk.severity.toString().toLowerCase()}">
+                        <div class="risk-category">
+                            <span th:text="${risk.category.displayName}"></span>
+                            <span class="severity-badge" th:classappend="${risk.severity.toString().toLowerCase()}" th:text="${risk.severity}"></span>
+                        </div>
+                        <div class="risk-description" th:text="${risk.description}"></div>
+                        <div class="risk-evidence" th:text="'📍 ' + ${risk.evidence}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="back-button" onclick="window.location='/'">← Scan Another Repository</button>
+    </div>
+</body>
+</html>
