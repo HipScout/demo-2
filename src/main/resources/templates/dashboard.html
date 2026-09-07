@@ -261,7 +261,7 @@
             <h1>🔍 Scan Results</h1>
             <p th:text="${scanType}"></p>
             
-            <div th:if="${scanResult}" class="scan-info">
+            <div th:if="${scanResult != null}" class="scan-info">
                 <div class="info-card">
                     <div class="info-label">Total Projects Scanned</div>
                     <div class="info-value" th:text="${scanResult.totalProjects}"></div>
@@ -280,18 +280,18 @@
                 </div>
             </div>
 
-            <div th:if="${scanResult && targetType}" class="action-bar">
+            <div th:if="${scanResult != null and targetType != null}" class="action-bar">
                 <a th:href="@{/download/pdf(type=${targetType}, target=${targetName}, token=${scanToken})}" class="action-btn btn-pdf">📄 Download PDF Report</a>
                 <a th:href="@{/download/json(type=${targetType}, target=${targetName}, token=${scanToken})}" class="action-btn btn-json">📦 Download JSON Report</a>
                 <a href="/" class="action-btn btn-back">← Scan Another Repository</a>
             </div>
         </div>
 
-        <div th:if="${error}" class="error-box">
+        <div th:if="${error != null}" class="error-box">
             <strong>Error:</strong> <span th:text="${error}"></span>
         </div>
 
-        <div th:if="${scanResult && scanResult.projectsScanned}" class="results-grid">
+        <div th:if="${scanResult != null and scanResult.projectsScanned != null}" class="results-grid">
             <div class="summary">
                 <div class="summary-item high">
                     <div class="label">High Risk</div>
@@ -334,8 +334,8 @@
 
         <div class="action-bar" style="margin-top: 30px;">
             <a href="/" class="action-btn btn-back">← Scan Another Repository</a>
-            <a th:if="${scanResult && targetType}" th:href="@{/download/pdf(type=${targetType}, target=${targetName}, token=${scanToken})}" class="action-btn btn-pdf">📄 Download PDF Report</a>
-            <a th:if="${scanResult && targetType}" th:href="@{/download/json(type=${targetType}, target=${targetName}, token=${scanToken})}" class="action-btn btn-json">📦 Download JSON Report</a>
+            <a th:if="${scanResult != null and targetType != null}" th:href="@{/download/pdf(type=${targetType}, target=${targetName}, token=${scanToken})}" class="action-btn btn-pdf">📄 Download PDF Report</a>
+            <a th:if="${scanResult != null and targetType != null}" th:href="@{/download/json(type=${targetType}, target=${targetName}, token=${scanToken})}" class="action-btn btn-json">📦 Download JSON Report</a>
         </div>
     </div>
 </body>
